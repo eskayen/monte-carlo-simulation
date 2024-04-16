@@ -2,7 +2,6 @@ import matplotlib as plt
 import numpy
 from tkinter import *
 
-
 # initial macros
 INITIAL_INVESTMENT = 1000000
 NUM_SIMULATIONS = 1000
@@ -45,7 +44,6 @@ run_dist_A_button = Button(canvas, text = "Show stock A distribution", command=s
 run_dist_B_button = Button(canvas, text = "Show stock B distribution", command=stock_B_dist)
 run_dist_C_button = Button(canvas, text = "Show stock C distribution", command=stock_C_dist)
 run_dist_D_button = Button(canvas, text = "Show stock D distribution", command=stock_D_dist)
-
 
 # pack the components
 intro_label.pack(expand=True, fill='both')

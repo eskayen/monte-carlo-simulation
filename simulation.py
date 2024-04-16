@@ -6,7 +6,7 @@ NUM_SIMULATIONS = 1000
 
 
 def main():
-    print("Main")
+    print("asdasd")
 
 if __name__ == "__main__":
     main()

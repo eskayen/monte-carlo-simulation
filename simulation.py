@@ -146,7 +146,7 @@ def run_sim():
 
     # generate histogram
     if cbtn_graph_bool.get() == True:
-        plt.figure(figsize=(8, 6))
+        plt.figure(figsize=(8, 6),  num="Simulation Results")
         plt.grid(True)
         plt.hist(portfolio_returns, bins=50, density=True, alpha=0.5, color='b')
         plt.xticks(rotation=-30, ha='left')
@@ -166,17 +166,20 @@ def run_sim():
         # first obtain mean (expected value) and standard deviation for each stock
         stocks_mean = []
         stocks_std = []
-
+        # obtain expected returns and standard deviation
         for(stock, param) in stock_params.items():
             if(param['dist'] == 'unif'):
                 mean = (param['a'] + param['b']) / 2
-                var = ((param['b'] - param['a'])**2)/12
-                std = var ** (0.5)
+                var = (pow(param['b']-param['a'], 2))/12
+                std = pow(var, 0.5)
                 stocks_mean.append(mean)
                 stocks_std.append(std)
             elif(param['dist']=='norm'):
                 stocks_mean.append(param['mean'])
                 stocks_std.append(param['stdev'])
+                
+        print(stocks_mean)
+        print(stocks_std)
 
         # arrays holding the simulation results
         all_weights = np.zeros((num_sims, 4))
@@ -194,21 +197,31 @@ def run_sim():
 
             # gather the expected return and stdev with these new weights
             # store the mean and stdev information
-            mean_arr[i] = np.sum(stocks_mean * weights)
-            stdev_arr[i] = np.sqrt(np.sum(stocks_std * weights))
+            mean_arr[i] = np.dot(stocks_mean, weights)
+            stdev_arr[i] = np.dot(stocks_std, weights)
 
             # store the calculated sharpe ratio
             sharpe_ratios[i] = mean_arr[i]/stdev_arr[i]
 
-        print("largest sharpe ratio: ")
-        print(sharpe_ratios.argmax())
-
+        max = sharpe_ratios.argmax()
+        print("max sharpe ratio: ", sharpe_ratios[max], " at index ", max)
+        print(all_weights[max])
+        
+        optimal_stocks = ("optimal stocks: % \n"
+                  "stock A: {:.4f}\n"
+                  "stock B: {:.4f}\n"
+                  "stock C: {:.4f}\n"
+                  "stock D: {:.4f}").format(all_weights[max][0], all_weights[max][1], all_weights[max][2], all_weights[max][3])
+        
+        
         # plot the stuff
-        plt.figure(figsize=(8,6))
-        plt.scatter(stdev_arr, mean_arr, c=sharpe_ratios, cmap='plasma')
-        plt.xlabel('stdev')
-        plt.ylabel('mean')
+        plt.figure(figsize=(8,6), num="Sharpe Ratio Graph for Optimal Stock Allocation")
+        plt.scatter(x=stdev_arr, y=mean_arr, c=sharpe_ratios, cmap='PuRd')
+        plt.xlabel('standard deviation (volatility)')
+        plt.ylabel('return rate')
         plt.colorbar(label='Sharpe Ratio')
+        t = plt.text(0.05, 0.09, optimal_stocks, fontsize=12,style='italic')
+        t.set_bbox(dict(facecolor='purple', alpha=0.5, linewidth=0))
         plt.show()
 
 
@@ -263,22 +276,22 @@ btn_dispay_stocks.grid(columnspan=2, pady=(15, 0))
 # scales for allocating percentages to each stock
 label_A = Label(canvas, text='Allocation for Stock A: 0%')
 label_A.grid(column=0, columnspan=2, padx=10, pady=(15, 0))
-scale_A = Scale(canvas, from_=0, to=100, orient='horizontal', length=200, command=update_label_A, resolution=5, tickinterval=25)
+scale_A = Scale(canvas, from_=0, to=100, orient='horizontal', length=200, command=update_label_A, resolution=1, tickinterval=25)
 scale_A.grid(column=0, columnspan=2, padx=10)
 
 label_B = Label(canvas, text='Allocation for Stock B: 0%')
 label_B.grid(column=0, columnspan=2, padx=10)
-scale_B = Scale(canvas, from_=0, to=100, orient='horizontal', length=200, command=update_label_B, resolution=5, tickinterval=25)
+scale_B = Scale(canvas, from_=0, to=100, orient='horizontal', length=200, command=update_label_B, resolution=1, tickinterval=25)
 scale_B.grid(column=0, columnspan=2, padx=10)
 
 label_C = Label(canvas, text='Allocation for Stock C: 0%')
 label_C.grid(column=0, columnspan=2, padx=10)
-scale_C = Scale(canvas, from_=0, to=100, orient='horizontal', length=200, command=update_label_C, resolution=5, tickinterval=25)
+scale_C = Scale(canvas, from_=0, to=100, orient='horizontal', length=200, command=update_label_C, resolution=1, tickinterval=25)
 scale_C.grid(column=0, columnspan=2, padx=10)
 
 label_D = Label(canvas, text='Allocation for Stock D: 0%')
 label_D.grid(column=0, columnspan=2, padx=10)
-scale_D = Scale(canvas, from_=0, to=100, orient='horizontal', length=200, command=update_label_D, resolution=5, tickinterval=25)
+scale_D = Scale(canvas, from_=0, to=100, orient='horizontal', length=200, command=update_label_D, resolution=1, tickinterval=25)
 scale_D.grid(column=0, columnspan=2, padx=10, pady=(0, 10))
 
 # Create fields for results

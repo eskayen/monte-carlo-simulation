@@ -77,16 +77,16 @@ def display_stocks():
 
 # custom formatter for representing millions on histogram tick marks
 def tick_formatter(x, pos):
-    return f'{x / 1e6:.1f}M'
+    return f'{x / 1e6:.2f}M'
 
 # function for main simulation logic
 def run_sim():
     # get entries: starting money, number of simulations, years, desired profit, desired loss
     start_money = float(entry_start_money.get())
     num_sims = int(entry_num_sims.get())
-    years = int(entry_num_years.get())
-    profit_val = start_money * (100 + int(entry_profit.get())) / 100
-    loss_val = start_money * (100 - int(entry_loss.get())) / 100
+    num_years = int(entry_num_years.get())
+    profit_threshold = start_money * (100 + int(entry_profit.get())) / 100
+    loss_threshold = start_money * (100 - int(entry_loss.get())) / 100
 
     # determine what percentage of starting money went to which stock
     stock_allocs = {
@@ -103,52 +103,54 @@ def run_sim():
         'C': {'dist': 'norm', 'mean': 0.08, 'stdev': 0.04},
         'D': {'dist': 'unif', 'a': 0.06, 'b': 0.08}
     }
-
+    
     # perform monte carlo simulation
-    portfolio_returns = [] # array to contain total money returned from each simulation
+    portfolio_values = [] # array to contain total money returned from each simulation
+    prob_profit = 0 # proability of profit
+    prob_loss = 0 # probability of loss
+
+    # loop through simulations
     for _ in range(num_sims):
-        portfolio_return = start_money # begins at inital money and accumulates amount earned by each stock
-        # iterate through the four stocks
-        for (stock, params) in stock_params.items():
-            percent_return = 0 # will represent the percentage of the starting money a stock will yield
-            # for each year, randomly generate a percentage according to the stock's distribution and add to overall percent return
-            for _ in range(years):
+        portfolio_value = start_money # the inital investment for a year / the value of the entire portfolio after all years
+        # loop through years
+        for _ in range(num_years):
+            yearly_yield = 0
+            # loop through stocks
+            for (stock, params) in stock_params.items():
+                # randomly generate a return rate for the stock
                 if params['dist'] == 'unif':
-                    percent_return += np.random.uniform(params['a'], params['b'])
+                    return_rate = np.random.uniform(params['a'], params['b'])
                 elif params['dist'] == 'norm':
-                    percent_return += np.random.normal(params['mean'], params['stdev'])
-            # once the stock had been evaluated throughout the time span, determine how much money was returned and accumulate
-            portfolio_return += stock_allocs[stock] * (portfolio_return * percent_return)
-        # store the money gained from the entire portfolio
-        portfolio_returns.append(portfolio_return)
-
+                    return_rate = np.random.normal(params['mean'], params['stdev'])
+                # add stock yield (how much of the year's initial investment went to the stock times how much of the stock's investment was gained or lost) to the entire year's yield
+                yearly_yield += portfolio_value * stock_allocs[stock] * return_rate
+            # determine the portfolio's value after a year / the initial investment for next year
+            portfolio_value += yearly_yield
+        # determine whether final portfolio value was a profit or loss based on user thresholds
+        if portfolio_value >= profit_threshold:
+            prob_profit += 1/num_sims
+        if portfolio_value <= loss_threshold:
+            prob_loss += 1/num_sims
+        # store value of entire portfolio after each simulation
+        portfolio_values.append(portfolio_value)
+    
     # analyze results
-    mean_profit = np.mean(portfolio_returns)
+    mean_profit = np.mean(portfolio_values)
     mean_percent_profit = (mean_profit - start_money) / start_money * 100
-    std_dev = np.std(portfolio_returns)
-
+    std_dev = np.std(portfolio_values)
+    
     # update result fields
     avg_profit.config(text=f'Average Profit: {mean_percent_profit:.2f}%')
     end_money.config(text=f'Average Ending Money: ${mean_profit:.2f}')
     standard_dev.config(text=f'Standard Deviation: ${std_dev:.2f}')
-
-    # calculate probability of profit and loss
-    prob_profit = 0
-    prob_loss = 0
-    for val in portfolio_returns:
-        if val >= profit_val:
-            prob_profit += 1/num_sims
-        if val <= loss_val:
-            prob_loss += 1/num_sims
     profit.config(text=f'Probability of at Least {int(entry_profit.get())}% Profit: {prob_profit * 100:.2f}%')
     loss.config(text=f'Probability of at Least {int(entry_loss.get())}% Loss: {prob_loss * 100:.2f}%')
 
-
     # generate histogram
     if cbtn_graph_bool.get() == True:
-        plt.figure(figsize=(8, 6),  num="Simulation Results")
+        plt.figure(figsize=(8, 6), num='Simulation Results')
         plt.grid(True)
-        plt.hist(portfolio_returns, bins=50, density=True, alpha=0.5, color='b')
+        plt.hist(portfolio_values, bins=70, density=True, alpha=0.5, color='b')
         plt.xticks(rotation=-30, ha='left')
         plt.gca().xaxis.set_major_formatter(tkr.FuncFormatter(tick_formatter))
         plt.xlabel('Ending Money ($)')

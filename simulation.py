@@ -8,6 +8,22 @@ import pandas as pd
 INITIAL_INVESTMENT = 1000000
 NUM_SIMULATIONS = 1000
 
+## GLOBALS
+# user entries
+start_money = 0
+num_sims = 0
+num_years = 0
+profit_threshold = 0
+profit_prob = 0
+loss_threshold = 0
+loss_prob = 0
+
+# stock mean and standard deviation that is going to be calculated through simulations
+stockA_samples = []
+stockB_samples = []
+stockC_samples = []
+stockD_samples = []
+
 # stock parameters
 stock_params = {
     'A': {'dist': 'unif', 'a': -0.4, 'b': 0.6},
@@ -57,25 +73,25 @@ def display_stocks():
     (xmin, xmax) = -50, 70
 
     x1 = np.linspace(-40, 60, 1000)
-    axes[0, 0].hist(x1, density=True)
+    axes[0, 0].hist(x1, density=True, color='purple')
     axes[0, 0].set_xlim(xmin, xmax)
     axes[0, 0].set_ylim(0, 0.1)
     axes[0, 0].set_title('Stock A')
 
     x2 = np.linspace(-10, 26, 1000)
-    axes[0, 1].hist(x2, density=True)
+    axes[0, 1].hist(x2, density=True, color='purple')
     axes[0, 1].set_xlim(xmin, xmax)
     axes[0, 1].set_ylim(0, 0.1)
     axes[0, 1].set_title('Stock B')
 
     x3 = np.random.normal(8, 4, 1000)
-    axes[1, 0].hist(x3, density=True)
+    axes[1, 0].hist(x3, density=True, color='purple')
     axes[1, 0].set_xlim(xmin, xmax)
     axes[1, 0].set_ylim(0, 0.2)
     axes[1, 0].set_title('Stock C')
 
     x4 = np.linspace(6, 8, 1000)
-    axes[1, 1].hist(x4, density=True)
+    axes[1, 1].hist(x4, density=True, color='purple')
     axes[1, 1].set_xlim(xmin, xmax)
     axes[1, 1].set_ylim(0, 0.6)
     axes[1, 1].set_title('Stock D')
@@ -83,36 +99,22 @@ def display_stocks():
     plt.tight_layout()
     plt.show()
 
-def display_sim_graph(x, mean, stdev):
-    plt.figure(figsize=(8, 6), num='Simulation Results', clear=True)
-    plt.grid(True)
-    plt.hist(x, bins=70, density=True, alpha=0.5, color='b')
-    plt.xticks(rotation=-30, ha='left')
-    plt.gca().xaxis.set_major_formatter(tkr.FuncFormatter(tick_formatter))
-    plt.xlabel('Ending Money ($)')
-    plt.ylabel('Probability (%)')
-    plt.title('Monte Carlo Simulation Results')
-    plt.axvline(mean, color='r', linestyle='dashed', linewidth=1, label=f'Mean: ${mean:.2f}')
-    plt.axvline(mean - stdev, color='g', linestyle='dashed', linewidth=1, label=f'Std Dev: ±${stdev:.2f}')
-    plt.axvline(mean + stdev, color='g', linestyle='dashed', linewidth=1)
-    plt.legend()
-    plt.show()
-
 # custom formatter for representing millions on histogram tick marks
 def tick_formatter(x, pos):
     return f'{x / 1e6:.2f}M'
 
-# fetch user input
-def get_sim_inputs():
+# update globals using user input
+def get_inputs():
     # get entries: starting money, number of simulations, years, desired profit, desired loss
+    global start_money; global num_sims; global num_years; global profit_threshold; global loss_threshold
     start_money = float(entry_start_money.get())
     num_sims = int(entry_num_sims.get())
     num_years = int(entry_num_years.get())
-    profit_thresh = start_money * (100 + int(entry_profit.get())) / 100
-    loss_thresh = start_money * (100 - int(entry_loss.get())) / 100
-
-    return (start_money, num_sims, num_years, profit_thresh, loss_thresh)
-
+    profit_threshold = start_money * (100 + int(entry_profit.get())) / 100
+    loss_threshold = start_money * (100 - int(entry_loss.get())) / 100
+    
+    
+# get stock allocations
 def get_stock_allocs():
     return {
         'A': scale_A.get() / 100,
@@ -122,14 +124,13 @@ def get_stock_allocs():
     }
 
 def run_sim_default():
+    # get user inputs
+    get_inputs()
     stock_allocs = get_stock_allocs()
-    run_sim(stock_allocs)
+    run_sim(stock_allocs, num_sims)
 
 # function for main simulation logic
-def run_sim(stock_allocs):
-
-    # get user inputs
-    (start_money, num_sims, num_years, profit_thresh, loss_thresh) = get_sim_inputs()
+def run_sim(stock_allocs, num_sims):
     
     # perform monte carlo simulation
     portfolio_values = [] # array to contain total money returned from each simulation
@@ -147,70 +148,81 @@ def run_sim(stock_allocs):
                 # randomly generate a return rate for the stock
                 if params['dist'] == 'unif':
                     return_rate = np.random.uniform(params['a'], params['b'])
+                    # also add to the samples so we can use it to calculate mean and stdev
+                    if stock == 'A':
+                        stockA_samples.append(return_rate)
+                    elif stock == 'B':
+                        stockB_samples.append(return_rate)
+                    elif stock == 'D':
+                        stockD_samples.append(return_rate)
                 elif params['dist'] == 'norm':
                     return_rate = np.random.normal(params['mean'], params['stdev'])
+                    if stock == 'C':
+                        stockC_samples.append(return_rate)
                 # add stock yield (how much of the year's initial investment went to the stock times how much of the stock's investment was gained or lost) to the entire year's yield
                 yearly_yield += portfolio_value * stock_allocs[stock] * return_rate
             # determine the portfolio's value after a year / the initial investment for next year
             portfolio_value += yearly_yield
         # determine whether final portfolio value was a profit or loss based on user thresholds
-        if portfolio_value >= profit_thresh:
+        if portfolio_value >= profit_threshold:
             prob_profit += 1/num_sims
-        if portfolio_value <= loss_thresh:
+        if portfolio_value <= loss_threshold:
             prob_loss += 1/num_sims
         # store value of entire portfolio after each simulation
         portfolio_values.append(portfolio_value)
     
     # analyze results
-    mean = np.mean(portfolio_values)
-    mean_percent_profit = (mean - start_money) / start_money * 100
-    stdev = np.std(portfolio_values)
+    mean_profit = np.mean(portfolio_values)
+    mean_percent_profit = (mean_profit - start_money) / start_money * 100
+    std_dev = np.std(portfolio_values)
     
     # update result fields
-    label_avg_profit.config(text=f'Average Profit: {mean_percent_profit:.2f}%')
-    label_mean.config(text=f'Average Ending Money: ${mean:.2f}')
-    label_stdev.config(text=f'Standard Deviation: ${stdev:.2f}')
+    avg_profit.config(text=f'Average Profit: {mean_percent_profit:.2f}%')
+    end_money.config(text=f'Average Ending Money: ${mean_profit:.2f}')
+    standard_dev.config(text=f'Standard Deviation: ${std_dev:.2f}')
 
     profit_percent = int(entry_profit.get())
-    if(profit_percent != 0): label_profit_p_res.config(text=f'Probability of at Least {profit_percent}% Profit: {prob_profit * 100:.2f}%')
-    else: label_profit_p_res.config(text=f'Probability of Any Profit: {prob_profit * 100:.2f}%')
+    if(profit_percent != 0):
+        profit.config(text=f'Probability of at Least {profit_percent}% Profit: {prob_profit * 100:.2f}%')
+    else:
+        profit.config(text=f'Probability of Any Profit: {prob_profit * 100:.2f}%')
     
     loss_percent = int(entry_loss.get())
-    if(loss_percent != 0): label_loss_p_res.config(text=f'Probability of at Least {loss_percent}% Loss: {prob_loss * 100:.2f}%')
-    else: label_loss_p_res.config(text=f'Probability of Any Loss: {prob_loss * 100:.2f}%')
+    if(loss_percent != 0):
+        loss.config(text=f'Probability of at Least {loss_percent}% Loss: {prob_loss * 100:.2f}%')
+    else:
+        loss.config(text=f'Probability of Any Loss: {prob_loss * 100:.2f}%')
 
     # generate histogram
     if cbtn_graph_bool.get() == True:
-        display_sim_graph(portfolio_values, mean, stdev)
-    
-    return (mean, stdev, prob_profit, prob_loss)
+        plt.figure(figsize=(8, 6), num='Simulation Results', clear=True)
+        plt.grid(True)
+        plt.hist(portfolio_values, bins=70, density=True, alpha=0.5, color='purple')
+        plt.xticks(rotation=-30, ha='left')
+        plt.gca().xaxis.set_major_formatter(tkr.FuncFormatter(tick_formatter))
+        plt.xlabel('Ending Money ($)')
+        plt.ylabel('Probability (%)')
+        plt.title('Monte Carlo Simulation Results')
+        plt.axvline(mean_profit, color='r', linestyle='dashed', linewidth=1, label=f'Mean: ${mean_profit:.2f}')
+        plt.axvline(mean_profit - std_dev, color='g', linestyle='dashed', linewidth=1, label=f'Std Dev: ±${std_dev:.2f}')
+        plt.axvline(mean_profit + std_dev, color='g', linestyle='dashed', linewidth=1)
+        plt.legend()
+        plt.show()
+        
+    if cbtn_opt_bool.get() == True:
+        find_opt()
 
 # function for calculating optimal portfolio
 def find_opt():
-    global start_money; global num_sims; global num_years; global profit_thresh; global loss_thresh
-
-    # get user inputs
-    get_inputs()
     
     # first obtain mean (expected value) and standard deviation for each stock
-    stocks_mean = []
-    stocks_std = []
-    # obtain expected returns and standard deviation
-    for(_, param) in stock_params.items():
-        if(param['dist'] == 'unif'):
-            mean = (param['a'] + param['b']) / 2
-            var = (pow(param['b']-param['a'], 2))/12
-            std = pow(var, 0.5)
-            stocks_mean.append(mean)
-            stocks_std.append(std)
-        elif(param['dist']=='norm'):
-            stocks_mean.append(param['mean'])
-            stocks_std.append(param['stdev'])
-            
+    stocks_mean = [np.mean(stockA_samples),np.mean(stockB_samples),np.mean(stockC_samples), np.mean(stockD_samples)]
+    stocks_std = [np.std(stockA_samples), np.std(stockB_samples),np.std(stockC_samples),np.std(stockD_samples)]
+   
     print(stocks_mean)
     print(stocks_std)
-
-    n = 100000
+    
+    n = num_sims
 
     # arrays holding the simulation results
     all_weights = np.zeros((n, 4))
@@ -244,126 +256,15 @@ def find_opt():
               "stock C: {:.4f}\n"
               "stock D: {:.4f}").format(all_weights[max][0], all_weights[max][1], all_weights[max][2], all_weights[max][3])
         
-    if cbtn_opt_bool.get() == True:
-        
-        # plot the stuff
-        plt.figure(figsize=(8,6), num="Sharpe Ratio Graph for Optimal Stock Allocation", clear=True)
-        plt.scatter(x=stdev_arr, y=mean_arr, c=sharpe_ratios, cmap='PuRd')
-        plt.xlabel('standard deviation (volatility)')
-        plt.ylabel('return rate')
-        plt.colorbar(label='Sharpe Ratio')
-        t = plt.text(0.05, 0.09, optimal_stocks, fontsize=12,style='italic')
-        t.set_bbox(dict(facecolor='purple', alpha=0.5, linewidth=0))
-        plt.show()
-
-def config_opt():
-
-    def get_opt_inputs():
-        profit_prob = int(entry_profit_p.get())
-        profit_thresh = int(entry_profit.get())
-        loss_prob = int(entry_loss_p.get())
-        loss_thresh = int(entry_loss.get())
-        num_sims = int(entry_num_sims.get())
-        num_years = int(entry_num_years.get())
-
-        return (profit_prob, profit_thresh, loss_prob, loss_thresh, num_sims, num_years)
-    # END get_opt_inputs
-    
-    def run_opt():
-        (profit_prob, profit_thresh, loss_prob, loss_thresh, num_sims, num_years) = get_opt_inputs()
-        highest_sharpe = 0
-        portfolio = ()
-
-        print(f'\nPortfolio with\n\tat least {profit_prob}% chance of {profit_thresh}% or more profit,\n\tat least {loss_prob}% chance of {loss_thresh}% or more loss,\n\tand highest Sharpe ratio after {num_years} years:')
-
-        for percent_A in range(0, 101, 5):
-            for percent_B in range(0, 101 - percent_A, 5):
-                for percent_C in range(0, 101 - percent_A - percent_B, 5):
-                    for percent_D in range(0, 101 - percent_A - percent_B - percent_C, 5):
-                        if (percent_A + percent_B + percent_C + percent_D == 100):
-                            allocs = {'A' : percent_A, 'B' : percent_B, 'C' : percent_C, 'D' : percent_D}
-                            (mean, stdev, profit_p, loss_p) = run_sim(allocs, )
-                            sharpe = mean / stdev
-
-                            if (profit_p >= profit_prob/100 and loss_p <= loss_prob/100 and sharpe >= highest_sharpe):
-                                highest_sharpe = sharpe
-                                portfolio = (percent_A, percent_B, percent_C, percent_D, sharpe)
-
-        if(portfolio == ()): portfolio = 'Does Not Exist'
-        print(f'\t\t{portfolio}\n')
-    # END run_opt
-
-    opt_canvas = Toplevel(canvas)
-    opt_canvas.title("Optimal Portolio Finder")
-
-    # starting money entry
-    label_start_money = Label(opt_canvas, text='Starting Money ($):')
-    label_start_money.grid(row=0, column=0, padx=10, pady=5, sticky='w')
-    text_start_money = StringVar()
-    text_start_money.set(INITIAL_INVESTMENT)
-    entry_start_money = Entry(opt_canvas, textvariable=text_start_money)
-    entry_start_money.grid(row=0, column=1, padx=10, pady=5, sticky='e')
-
-    # number of simulations entry
-    label_num_sims = Label(opt_canvas, text='Number of Simulations:')
-    label_num_sims.grid(row=1, column=0, padx=10, pady=5, sticky='w')
-    text_num_sims = StringVar()
-    text_num_sims.set(100)
-    entry_num_sims = Entry(opt_canvas, textvariable=text_num_sims)
-    entry_num_sims.grid(row=1, column=1, padx=10, pady=5, sticky='e')
-
-    # number of years entry
-    label_num_years = Label(opt_canvas, text='Time Period (Years):')
-    label_num_years.grid(row=2, column=0, padx=10, pady=5, sticky='w')
-    text_num_years = StringVar()
-    text_num_years.set('1')
-    entry_num_years = Entry(opt_canvas, textvariable=text_num_years)
-    entry_num_years.grid(row=2, column=1, padx=10, pady=5, sticky='e')
-
-    # desired profit entry
-    label_profit = Label(opt_canvas, text='Desired Profit Amount (%):')
-    label_profit.grid(row=3, column=0, padx=10, pady=5, sticky='w')
-    text_profit = StringVar()
-    text_profit.set('0')
-    entry_profit = Entry(opt_canvas, textvariable=text_profit)
-    entry_profit.grid(row=3, column=1, padx=10, pady=5, sticky='e')
-
-    # desired loss entry
-    label_loss = Label(opt_canvas, text='Desired Loss Amount (%):')
-    label_loss.grid(row=4, column=0, padx=10, pady=5, sticky='w')
-    text_loss = StringVar()
-    text_loss.set('0')
-    entry_loss = Entry(opt_canvas, textvariable=text_loss)
-    entry_loss.grid(row=4, column=1, padx=10, pady=5, sticky='e')
-
-    # desired profit probability entry
-    label_profit_p = Label(opt_canvas, text='Desired Profit Probability (%):')
-    label_profit_p.grid(row=5, column=0, padx=10, pady=5, sticky='w')
-    text_profit_p = StringVar()
-    text_profit_p.set('0')
-    entry_profit_p = Entry(opt_canvas, textvariable=text_profit_p)
-    entry_profit_p.grid(row=5, column=1, padx=10, pady=5, sticky='e')
-
-    # desired loss probability entry
-    label_loss_p = Label(opt_canvas, text='Desired Loss Probability (%):')
-    label_loss_p.grid(row=6, column=0, padx=10, pady=5, sticky='w')
-    text_loss_p = StringVar()
-    text_loss_p.set('0')
-    entry_loss_p = Entry(opt_canvas, textvariable=text_loss_p)
-    entry_loss_p.grid(row=6, column=1, padx=10, pady=5, sticky='e')
-
-    # button to run optimal portfolio calculation
-    btn_opt = Button(opt_canvas, text='Find Optimal Portfolio', command=run_opt)
-    btn_opt.grid(columnspan=2, pady=(10, 0))
-
-    # check button for displaying optimal portfolio graph
-    cbtn_opt_bool = IntVar()
-    cbtn_opt = Checkbutton(opt_canvas, text='Show Optimal Portfolio Graph', variable=cbtn_opt_bool)
-    cbtn_opt.grid(columnspan=2, pady=10)
-
-
-
-## MAIN
+    # plot the stuff
+    plt.figure(figsize=(8,6), num="Sharpe Ratio Graph for Optimal Stock Allocation", clear=True)
+    plt.scatter(x=stdev_arr, y=mean_arr, c=sharpe_ratios, cmap='PuRd')
+    plt.xlabel('standard deviation (volatility)')
+    plt.ylabel('return rate')
+    plt.colorbar(label='Sharpe Ratio')
+    t = plt.text(0.05, 0.09, optimal_stocks, fontsize=12,style='italic')
+    t.set_bbox(dict(facecolor='purple', alpha=0.5, linewidth=0))
+    plt.show()
 
 # main window
 canvas = Tk()
@@ -372,41 +273,41 @@ canvas.title('Monte Carlo Simulation')
 # starting money entry
 label_start_money = Label(canvas, text='Starting Money ($):')
 label_start_money.grid(row=0, column=0, padx=10, pady=5, sticky='w')
-text_start_money = StringVar()
-text_start_money.set(INITIAL_INVESTMENT)
-entry_start_money = Entry(canvas, textvariable=text_start_money)
+text_SM = StringVar()
+text_SM.set(INITIAL_INVESTMENT)
+entry_start_money = Entry(canvas, textvariable=text_SM)
 entry_start_money.grid(row=0, column=1, padx=10, pady=5, sticky='e')
 
 # number of simulations entry
 label_num_sims = Label(canvas, text='Number of Simulations:')
 label_num_sims.grid(row=1, column=0, padx=10, pady=5, sticky='w')
-text_num_sims = StringVar()
-text_num_sims.set(NUM_SIMULATIONS)
-entry_num_sims = Entry(canvas, textvariable=text_num_sims)
+text_NS = StringVar()
+text_NS.set(NUM_SIMULATIONS)
+entry_num_sims = Entry(canvas, textvariable=text_NS)
 entry_num_sims.grid(row=1, column=1, padx=10, pady=5, sticky='e')
 
 # number of years entry
 label_num_years = Label(canvas, text='Time Period (Years):')
 label_num_years.grid(row=2, column=0, padx=10, pady=5, sticky='w')
-text_num_years = StringVar()
-text_num_years.set('1')
-entry_num_years = Entry(canvas, textvariable=text_num_years)
+text_NY = StringVar()
+text_NY.set('1')
+entry_num_years = Entry(canvas, textvariable=text_NY)
 entry_num_years.grid(row=2, column=1, padx=10, pady=5, sticky='e')
 
 # desired profit entry
 label_profit = Label(canvas, text='Desired Profit Amount (%):')
 label_profit.grid(row=3, column=0, padx=10, pady=5, sticky='w')
-text_profit = StringVar()
-text_profit.set('0')
-entry_profit = Entry(canvas, textvariable=text_profit)
+text_DP = StringVar()
+text_DP.set('0')
+entry_profit = Entry(canvas, textvariable=text_DP)
 entry_profit.grid(row=3, column=1, padx=10, pady=5, sticky='e')
 
 # desired loss entry
 label_loss = Label(canvas, text='Desired Loss Amount (%):')
 label_loss.grid(row=4, column=0, padx=10, pady=5, sticky='w')
-text_loss = StringVar()
-text_loss.set('0')
-entry_loss = Entry(canvas, textvariable=text_loss)
+text_DL = StringVar()
+text_DL.set('0')
+entry_loss = Entry(canvas, textvariable=text_DL)
 entry_loss.grid(row=4, column=1, padx=10, pady=5, sticky='e')
 
 # scales for allocating percentages to each stock
@@ -434,36 +335,34 @@ scale_D.grid(row=10, column=4, rowspan=2, columnspan=2, padx=10)
 btn_dispay_stocks = Button(canvas, text='Show Stock Distributions', command=display_stocks)
 btn_dispay_stocks.grid(row=18, column=4, columnspan=2)
 
-# create labels for results
-label_results = Label(canvas, text='Results', font="Segoe 9 underline")
-label_results.grid(row=6, columnspan=2, padx=10)
+# Create fields for results
+end_money = Label(canvas, text='Average Ending Money:')
+end_money.grid(row=7, column=0, columnspan=2, padx=10, pady=5)
 
-label_mean = Label(canvas, text='Average Ending Money:')
-label_mean.grid(row=7, column=0, columnspan=2, padx=10, pady=5)
+avg_profit = Label(canvas, text='Average Profit:')
+avg_profit.grid(row=8, column=0, columnspan=2, padx=10, pady=5)
 
-label_avg_profit = Label(canvas, text='Average Profit:')
-label_avg_profit.grid(row=8, column=0, columnspan=2, padx=10, pady=5)
+standard_dev = Label(canvas, text='Standard Deviation:')
+standard_dev.grid(row=9, column=0, columnspan=2, padx=10, pady=5)
 
-label_stdev = Label(canvas, text='Standard Deviation:')
-label_stdev.grid(row=9, column=0, columnspan=2, padx=10, pady=5)
+profit = Label(canvas, text='Probability of Min Desired Profit:')
+profit.grid(row=10, column=0, columnspan=2, padx=10, pady=5)
 
-label_profit_p_res = Label(canvas, text='Probability of Min Desired Profit:')
-label_profit_p_res.grid(row=10, column=0, columnspan=2, padx=10, pady=5)
-
-label_loss_p_res = Label(canvas, text='Probability of Min Desired Loss:')
-label_loss_p_res.grid(row=11, column=0, columnspan=2, padx=10, pady=5)
+loss = Label(canvas, text='Probability of Min Desired Loss:')
+loss.grid(row=11, column=0, columnspan=2, padx=10, pady=5)
 
 # button to run sim
 btn_run = Button(canvas, text='Run Simulation', command=run_sim_default)
-btn_run.grid(row=18, column=0, pady=10)
+btn_run.grid(row=18, column=0, columnspan=2, pady=10)
 
 # checkbutton for displaying simulation results graph
 cbtn_graph_bool = IntVar()
 cbtn_graph = Checkbutton(canvas, text='Show Simulation Graph', variable=cbtn_graph_bool)
 cbtn_graph.grid(row=20, column=0, pady=10)
 
-# button to run optimal portfolio calculation
-btn_opt = Button(canvas, text='Optimal Portfolio Finder', command=config_opt)
-btn_opt.grid(row=18, column=1, pady=10)
+# check button for displaying optimal portfolio graph
+cbtn_opt_bool = IntVar()
+cbtn_opt = Checkbutton(canvas, text='Show Optimal Portfolio Graph', variable=cbtn_opt_bool)
+cbtn_opt.grid(row=20, column=1, pady=10)
 
 canvas.mainloop()

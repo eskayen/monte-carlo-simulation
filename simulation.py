@@ -8,6 +8,22 @@ import pandas as pd
 INITIAL_INVESTMENT = 1000000
 NUM_SIMULATIONS = 1000
 
+## GLOBALS
+# user entries
+start_money = 0
+num_sims = 0
+num_years = 0
+profit_threshold = 0
+loss_threshold = 0
+
+# stock parameters
+stock_params = {
+    'A': {'dist': 'unif', 'a': -0.4, 'b': 0.6},
+    'B': {'dist': 'unif', 'a': -0.1, 'b': 0.26},
+    'C': {'dist': 'norm', 'mean': 0.08, 'stdev': 0.04},
+    'D': {'dist': 'unif', 'a': 0.06, 'b': 0.08}
+}
+
 # functions for updating stock labels for A, B, C, and D
 def update_label_A(val):
     val = int(val)
@@ -79,14 +95,21 @@ def display_stocks():
 def tick_formatter(x, pos):
     return f'{x / 1e6:.2f}M'
 
-# function for main simulation logic
-def run_sim():
+# update globals using user input
+def get_inputs():
     # get entries: starting money, number of simulations, years, desired profit, desired loss
+    global start_money; global num_sims; global num_years; global profit_threshold; global loss_threshold
     start_money = float(entry_start_money.get())
     num_sims = int(entry_num_sims.get())
     num_years = int(entry_num_years.get())
     profit_threshold = start_money * (100 + int(entry_profit.get())) / 100
     loss_threshold = start_money * (100 - int(entry_loss.get())) / 100
+
+# function for main simulation logic
+def run_sim():
+    
+    # get user inputs
+    get_inputs()
 
     # determine what percentage of starting money went to which stock
     stock_allocs = {
@@ -94,14 +117,6 @@ def run_sim():
         'B': scale_B.get() / 100,
         'C': scale_C.get() / 100,
         'D': scale_D.get() / 100
-    }
-
-    # set up parameters of the four stocks
-    stock_params = {
-        'A': {'dist': 'unif', 'a': -0.4, 'b': 0.6},
-        'B': {'dist': 'unif', 'a': -0.1, 'b': 0.26},
-        'C': {'dist': 'norm', 'mean': 0.08, 'stdev': 0.04},
-        'D': {'dist': 'unif', 'a': 0.06, 'b': 0.08}
     }
     
     # perform monte carlo simulation
@@ -148,7 +163,7 @@ def run_sim():
 
     # generate histogram
     if cbtn_graph_bool.get() == True:
-        plt.figure(figsize=(8, 6), num='Simulation Results')
+        plt.figure(figsize=(8, 6), num='Simulation Results', clear=True)
         plt.grid(True)
         plt.hist(portfolio_values, bins=70, density=True, alpha=0.5, color='b')
         plt.xticks(rotation=-30, ha='left')
@@ -162,62 +177,66 @@ def run_sim():
         plt.legend()
         plt.show()
 
-    # get optimal portfolio
+# function for calculating optimal portfolio
+def find_opt():
+    
+    # get user inputs
+    get_inputs()
+    
+    # first obtain mean (expected value) and standard deviation for each stock
+    stocks_mean = []
+    stocks_std = []
+    # obtain expected returns and standard deviation
+    for(_, param) in stock_params.items():
+        if(param['dist'] == 'unif'):
+            mean = (param['a'] + param['b']) / 2
+            var = (pow(param['b']-param['a'], 2))/12
+            std = pow(var, 0.5)
+            stocks_mean.append(mean)
+            stocks_std.append(std)
+        elif(param['dist']=='norm'):
+            stocks_mean.append(param['mean'])
+            stocks_std.append(param['stdev'])
+            
+    print(stocks_mean)
+    print(stocks_std)
+
+    # arrays holding the simulation results
+    all_weights = np.zeros((num_sims, 4))
+    mean_arr = np.zeros(num_sims)
+    stdev_arr = np.zeros(num_sims)
+    sharpe_ratios = np.zeros(num_sims)
+
+    ## repeat for the number of simulations given
+    for i in range(num_sims):
+        # create random weights for each stock that add up to 1
+        weights = np.array(np.random.random(4))
+        weights = weights / np.sum(weights)
+        # save weights
+        all_weights[i, :] = weights
+
+        # gather the expected return and stdev with these new weights
+        # store the mean and stdev information
+        mean_arr[i] = np.dot(stocks_mean, weights)
+        stdev_arr[i] = np.dot(stocks_std, weights)
+
+        # store the calculated sharpe ratio
+        sharpe_ratios[i] = mean_arr[i]/stdev_arr[i]
+
+    max = sharpe_ratios.argmax()
+    print("max sharpe ratio: ", sharpe_ratios[max], " at index ", max)
+    print(all_weights[max])
+    
+    optimal_stocks = ("optimal stocks: % \n"
+              "stock A: {:.4f}\n"
+              "stock B: {:.4f}\n"
+              "stock C: {:.4f}\n"
+              "stock D: {:.4f}").format(all_weights[max][0], all_weights[max][1], all_weights[max][2], all_weights[max][3])
+        
     if cbtn_opt_bool.get() == True:
-
-        # first obtain mean (expected value) and standard deviation for each stock
-        stocks_mean = []
-        stocks_std = []
-        # obtain expected returns and standard deviation
-        for(stock, param) in stock_params.items():
-            if(param['dist'] == 'unif'):
-                mean = (param['a'] + param['b']) / 2
-                var = (pow(param['b']-param['a'], 2))/12
-                std = pow(var, 0.5)
-                stocks_mean.append(mean)
-                stocks_std.append(std)
-            elif(param['dist']=='norm'):
-                stocks_mean.append(param['mean'])
-                stocks_std.append(param['stdev'])
-                
-        print(stocks_mean)
-        print(stocks_std)
-
-        # arrays holding the simulation results
-        all_weights = np.zeros((num_sims, 4))
-        mean_arr = np.zeros(num_sims)
-        stdev_arr = np.zeros(num_sims)
-        sharpe_ratios = np.zeros(num_sims)
-
-        ## repeat for the number of simulations given
-        for i in range(num_sims):
-            # create random weights for each stock that add up to 1
-            weights = np.array(np.random.random(4))
-            weights = weights / np.sum(weights)
-            # save weights
-            all_weights[i, :] = weights
-
-            # gather the expected return and stdev with these new weights
-            # store the mean and stdev information
-            mean_arr[i] = np.dot(stocks_mean, weights)
-            stdev_arr[i] = np.dot(stocks_std, weights)
-
-            # store the calculated sharpe ratio
-            sharpe_ratios[i] = mean_arr[i]/stdev_arr[i]
-
-        max = sharpe_ratios.argmax()
-        print("max sharpe ratio: ", sharpe_ratios[max], " at index ", max)
-        print(all_weights[max])
-        
-        optimal_stocks = ("optimal stocks: % \n"
-                  "stock A: {:.4f}\n"
-                  "stock B: {:.4f}\n"
-                  "stock C: {:.4f}\n"
-                  "stock D: {:.4f}").format(all_weights[max][0], all_weights[max][1], all_weights[max][2], all_weights[max][3])
-        
         
         # plot the stuff
-        plt.figure(figsize=(8,6), num="Sharpe Ratio Graph for Optimal Stock Allocation")
+        plt.figure(figsize=(8,6), num="Sharpe Ratio Graph for Optimal Stock Allocation", clear=True)
         plt.scatter(x=stdev_arr, y=mean_arr, c=sharpe_ratios, cmap='PuRd')
         plt.xlabel('standard deviation (volatility)')
         plt.ylabel('return rate')
@@ -237,7 +256,7 @@ label_start_money.grid(row=0, column=0, padx=10, pady=5, sticky='w')
 default_text_SM = StringVar()
 default_text_SM.set(INITIAL_INVESTMENT)
 entry_start_money = Entry(canvas, textvariable=default_text_SM)
-entry_start_money.grid(row=0, column=1, padx=10, pady=5)
+entry_start_money.grid(row=0, column=1, padx=10, pady=5, sticky='e')
 
 # number of simulations entry
 label_num_sims = Label(canvas, text='Number of Simulations:')
@@ -245,7 +264,7 @@ label_num_sims.grid(row=1, column=0, padx=10, pady=5, sticky='w')
 default_text_NS = StringVar()
 default_text_NS.set(NUM_SIMULATIONS)
 entry_num_sims = Entry(canvas, textvariable=default_text_NS)
-entry_num_sims.grid(row=1, column=1, padx=10, pady=5)
+entry_num_sims.grid(row=1, column=1, padx=10, pady=5, sticky='e')
 
 # number of years entry
 label_num_years = Label(canvas, text='Time Period (Years):')
@@ -253,7 +272,7 @@ label_num_years.grid(row=2, column=0, padx=10, pady=5, sticky='w')
 default_text_NY = StringVar()
 default_text_NY.set('1')
 entry_num_years = Entry(canvas, textvariable=default_text_NY)
-entry_num_years.grid(row=2, column=1, padx=10, pady=5)
+entry_num_years.grid(row=2, column=1, padx=10, pady=5, sticky='e')
 
 # desired profit entry
 label_profit = Label(canvas, text='Desired Profit (%):')
@@ -261,7 +280,7 @@ label_profit.grid(row=3, column=0, padx=10, pady=5, sticky='w')
 default_text_DP = StringVar()
 default_text_DP.set('0')
 entry_profit = Entry(canvas, textvariable=default_text_DP)
-entry_profit.grid(row=3, column=1, padx=10, pady=5)
+entry_profit.grid(row=3, column=1, padx=10, pady=5, sticky='e')
 
 # desired loss entry
 label_loss = Label(canvas, text='Desired Loss (%):')
@@ -269,7 +288,7 @@ label_loss.grid(row=4, column=0, padx=10, pady=5, sticky='w')
 default_text_DL = StringVar()
 default_text_DL.set('0')
 entry_loss = Entry(canvas, textvariable=default_text_DL)
-entry_loss.grid(row=4, column=1, padx=10, pady=5)
+entry_loss.grid(row=4, column=1, padx=10, pady=5, sticky='e')
 
 # button for displaying the distribution graphs of all stocks
 btn_dispay_stocks = Button(canvas, text='Show Stock Distributions', command=display_stocks)
@@ -278,22 +297,22 @@ btn_dispay_stocks.grid(columnspan=2, pady=(15, 0))
 # scales for allocating percentages to each stock
 label_A = Label(canvas, text='Allocation for Stock A: 0%')
 label_A.grid(column=0, columnspan=2, padx=10, pady=(15, 0))
-scale_A = Scale(canvas, from_=0, to=100, orient='horizontal', length=200, command=update_label_A, resolution=1, tickinterval=25)
+scale_A = Scale(canvas, from_=0, to=100, orient='horizontal', length=300, command=update_label_A, resolution=1, tickinterval=25)
 scale_A.grid(column=0, columnspan=2, padx=10)
 
 label_B = Label(canvas, text='Allocation for Stock B: 0%')
 label_B.grid(column=0, columnspan=2, padx=10)
-scale_B = Scale(canvas, from_=0, to=100, orient='horizontal', length=200, command=update_label_B, resolution=1, tickinterval=25)
+scale_B = Scale(canvas, from_=0, to=100, orient='horizontal', length=300, command=update_label_B, resolution=1, tickinterval=25)
 scale_B.grid(column=0, columnspan=2, padx=10)
 
 label_C = Label(canvas, text='Allocation for Stock C: 0%')
 label_C.grid(column=0, columnspan=2, padx=10)
-scale_C = Scale(canvas, from_=0, to=100, orient='horizontal', length=200, command=update_label_C, resolution=1, tickinterval=25)
+scale_C = Scale(canvas, from_=0, to=100, orient='horizontal', length=300, command=update_label_C, resolution=1, tickinterval=25)
 scale_C.grid(column=0, columnspan=2, padx=10)
 
 label_D = Label(canvas, text='Allocation for Stock D: 0%')
 label_D.grid(column=0, columnspan=2, padx=10)
-scale_D = Scale(canvas, from_=0, to=100, orient='horizontal', length=200, command=update_label_D, resolution=1, tickinterval=25)
+scale_D = Scale(canvas, from_=0, to=100, orient='horizontal', length=300, command=update_label_D, resolution=1, tickinterval=25)
 scale_D.grid(column=0, columnspan=2, padx=10, pady=(0, 10))
 
 # Create fields for results
@@ -314,18 +333,20 @@ loss.grid(column=0, columnspan=2, padx=10, pady=5)
 
 # button to run sim
 btn_run = Button(canvas, text='Run Simulation', command=run_sim)
-btn_run.grid(row=19, column=0, columnspan=2, pady=10)
+btn_run.grid(row=19, column=0, pady=10)
 
-# checkbutton for displaying graph
+# checkbutton for displaying simulation results graph
 cbtn_graph_bool = IntVar()
 cbtn_graph = Checkbutton(canvas, text='Show Simulation Graph', variable=cbtn_graph_bool)
-cbtn_graph.grid(row=21, column=0, columnspan=1, pady=10)
+cbtn_graph.grid(row=21, column=0, pady=10)
 
-## Optimal portfolio determination
+# button to run optimal portfolio calculation
+btn_opt = Button(canvas, text='Find Optimal Portfolio', command=find_opt)
+btn_opt.grid(row=19, column=1, pady=10)
 
-# check button for getting optimal portfolio
+# check button for displaying optimal portfolio graph
 cbtn_opt_bool = IntVar()
 cbtn_opt = Checkbutton(canvas, text='Show Optimal Portfolio Graph', variable=cbtn_opt_bool)
-cbtn_opt.grid(row=21, column=1,columnspan=2, pady=10)
+cbtn_opt.grid(row=21, column=1, pady=10)
 
 canvas.mainloop()

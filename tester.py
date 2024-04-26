@@ -5,10 +5,10 @@ import time
 NUM_SIMS = 1000 # adjust if too slow
 INITIAL_MONEY = 1000000
 NUM_YEARS = 3 # result will depend on years
-P_THRESH = 0.5 # desired percent profit to reach/exceed
-P_PROB = 0.25 # desired min probability of reaching the profit
-L_THRESH = 0.5 # desired percent loss to reach/exceed
-L_PROB = 1 # desired max probability of reaching the loss
+P_THRESH = 0.05 # desired min percent profit
+P_PROB = 0.5 # desired min probability of reaching the profit
+L_THRESH = 0.1 # desired max percent loss
+L_PROB = 0.1 # desired min probability of reaching the loss
 
 # adjustable parameters: profit threshold & probability, loss threshold & probability, time span
 
@@ -54,15 +54,18 @@ def sim(percent_A, percent_B, percent_C, percent_D):
                     return_rate = np.random.normal(params['mean'], params['stdev'])
                 # add stock yield (how much of the year's initial investment went to the stock times how much of the stock's investment was gained or lost) to the entire year's yield
                 yearly_yield += portfolio_value * stock_allocs[stock] * return_rate
+            # END STOCKS LOOP
             # determine the portfolio's value after a year / the initial investment for next year
             portfolio_value += yearly_yield
+        # END YEARS LOOP
         # determine whether the final portfolio value was a profit or loss based on user thresholds
         if portfolio_value >= profit_val:
             prob_profit += 1 / NUM_SIMS
-        if portfolio_value <= loss_val:
+        if portfolio_value >= loss_val and portfolio_value < INITIAL_MONEY:
             prob_loss += 1 / NUM_SIMS
         # store the value of the entire portfolio after each simulation
         portfolio_values.append(portfolio_value)
+    # END SIMS LOOP
 
     # analyze results
     mean_profit = np.mean(portfolio_values)
@@ -72,7 +75,7 @@ def sim(percent_A, percent_B, percent_C, percent_D):
 # END sim
 
 
-print(f'\nPortfolio with\n\tat least {P_PROB * 100}% chance of {P_THRESH * 100}% or more profit,\n\tat most {L_PROB * 100}% chance of {L_THRESH * 100}% or more loss,\n\tand highest Sharpe ratio after {NUM_YEARS} years:')
+print(f'\nPortfolio with\n\tat least {P_PROB * 100}% chance of at least {P_THRESH * 100}% profit,\n\tat least {L_PROB * 100}% chance of at most {L_THRESH * 100}% loss,\n\tand highest Sharpe ratio after {NUM_YEARS} years:')
 
 highest_sharpe = 0
 portfolio = ()
@@ -90,7 +93,7 @@ for percent_A in range(0, 101, 5):
                     # if the simulation's probability of reaching/exceeding the desired profit reaches/exceeds the desired probability
                     # and the simulation's probability of reaching/exceeding the desired loss reaches/falls short of the desired probability
                     # and has the highest sharpe ratio
-                    if (p_prob >= P_PROB and l_prob <= L_PROB and sharpe >= highest_sharpe):
+                    if (p_prob >= P_PROB and l_prob >= L_PROB and sharpe >= highest_sharpe):
                         highest_sharpe = sharpe
                         portfolio = (percent_A, percent_B, percent_C, percent_D, sharpe)
 

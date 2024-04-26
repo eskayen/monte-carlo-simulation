@@ -166,7 +166,7 @@ def run_sim(stock_allocs, num_sims):
         # determine whether final portfolio value was a profit or loss based on user thresholds
         if portfolio_value >= profit_threshold:
             prob_profit += 1/num_sims
-        if portfolio_value <= loss_threshold:
+        if portfolio_value >= loss_threshold and portfolio_value < start_money:
             prob_loss += 1/num_sims
         # store value of entire portfolio after each simulation
         portfolio_values.append(portfolio_value)
@@ -182,16 +182,21 @@ def run_sim(stock_allocs, num_sims):
     standard_dev.config(text=f'Standard Deviation: ${std_dev:.2f}')
 
     profit_percent = int(entry_profit.get())
-    if(profit_percent != 0):
-        profit.config(text=f'Probability of at Least {profit_percent}% Profit: {prob_profit * 100:.2f}%')
-    else:
+    if(profit_percent == 0):
         profit.config(text=f'Probability of Any Profit: {prob_profit * 100:.2f}%')
+    elif(profit_percent == 100):
+        profit.config(text=f'Probability of No Profit: {prob_profit * 100:.2f}%')
+    else:
+        profit.config(text=f'Probability of at Least {profit_percent}% Profit: {prob_profit * 100:.2f}%')
+        
     
     loss_percent = int(entry_loss.get())
-    if(loss_percent != 0):
-        loss.config(text=f'Probability of at Least {loss_percent}% Loss: {prob_loss * 100:.2f}%')
-    else:
+    if(loss_percent == 0):
+        loss.config(text=f'Probability of No Loss: {prob_loss * 100:.2f}%')
+    elif(loss_percent == 100):
         loss.config(text=f'Probability of Any Loss: {prob_loss * 100:.2f}%')
+    else:
+        loss.config(text=f'Probability of at Most {loss_percent}% Loss: {prob_loss * 100:.2f}%')
 
     # generate histogram
     if cbtn_graph_bool.get() == True:
@@ -298,15 +303,15 @@ entry_num_years = Entry(canvas, textvariable=text_NY)
 entry_num_years.grid(row=2, column=1, padx=10, pady=5, sticky='e')
 
 # desired profit entry
-label_profit = Label(canvas, text='Desired Profit Amount (%):')
+label_profit = Label(canvas, text='Desired Min Profit Amount (%):')
 label_profit.grid(row=3, column=0, padx=10, pady=5, sticky='w')
 text_DP = StringVar()
-text_DP.set('0')
+text_DP.set('100')
 entry_profit = Entry(canvas, textvariable=text_DP)
 entry_profit.grid(row=3, column=1, padx=10, pady=5, sticky='e')
 
 # desired loss entry
-label_loss = Label(canvas, text='Desired Loss Amount (%):')
+label_loss = Label(canvas, text='Desired Max Loss Amount (%):')
 label_loss.grid(row=4, column=0, padx=10, pady=5, sticky='w')
 text_DL = StringVar()
 text_DL.set('0')
@@ -351,7 +356,7 @@ standard_dev.grid(row=9, column=0, columnspan=2, padx=10, pady=5)
 profit = Label(canvas, text='Probability of Min Desired Profit:')
 profit.grid(row=10, column=0, columnspan=2, padx=10, pady=5)
 
-loss = Label(canvas, text='Probability of Min Desired Loss:')
+loss = Label(canvas, text='Probability of Max Desired Loss:')
 loss.grid(row=11, column=0, columnspan=2, padx=10, pady=5)
 
 # button to run sim

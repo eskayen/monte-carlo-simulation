@@ -95,7 +95,7 @@ def display_stocks():
     axes[1, 1].set_xlim(xmin, xmax)
     axes[1, 1].set_ylim(0, 0.6)
     axes[1, 1].set_title('Stock D')
-
+    
     plt.tight_layout()
     plt.show()
 
@@ -113,7 +113,6 @@ def get_inputs():
     profit_threshold = start_money * (100 + int(entry_profit.get())) / 100
     loss_threshold = start_money * (100 - int(entry_loss.get())) / 100
     
-    
 # get stock allocations
 def get_stock_allocs():
     return {
@@ -123,6 +122,7 @@ def get_stock_allocs():
         'D': scale_D.get() / 100
     }
 
+# run sim default
 def run_sim_default():
     # get user inputs
     get_inputs()
@@ -265,6 +265,9 @@ def find_opt():
     t = plt.text(0.05, 0.09, optimal_stocks, fontsize=12,style='italic')
     t.set_bbox(dict(facecolor='purple', alpha=0.5, linewidth=0))
     plt.show()
+    
+    # if the desired profit % is given, find the optimal stocks for that
+    
 
 # main window
 canvas = Tk()

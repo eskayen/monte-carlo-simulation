@@ -2,13 +2,13 @@ import numpy as np
 import time
 
 # runtime(seconds) = years * sims / 100
-NUM_SIMS = 100 # adjust if too slow
+NUM_SIMS = 1000 # adjust if too slow
 INITIAL_MONEY = 1000000
 NUM_YEARS = 3 # result will depend on years
 P_THRESH = 0.5 # desired percent profit to reach/exceed
 P_PROB = 0.25 # desired min probability of reaching the profit
 L_THRESH = 0.5 # desired percent loss to reach/exceed
-L_PROB = 1 # desired min probability of reaching the loss
+L_PROB = 1 # desired max probability of reaching the loss
 
 # adjustable parameters: profit threshold & probability, loss threshold & probability, time span
 

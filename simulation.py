@@ -2,7 +2,6 @@ from tkinter import *
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tkr
-import pandas as pd
 
 # initial macros
 INITIAL_INVESTMENT = 1000000

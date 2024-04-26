@@ -166,7 +166,7 @@ def run_sim(stock_allocs, num_sims):
         # determine whether final portfolio value was a profit or loss based on user thresholds
         if portfolio_value >= profit_threshold and portfolio_value > start_money:
             prob_profit += 1/num_sims
-        if portfolio_value <= loss_threshold and portfolio_value < start_money:
+        if portfolio_value >= loss_threshold and portfolio_value < start_money:
             prob_loss += 1/num_sims
         # store value of entire portfolio after each simulation
         portfolio_values.append(portfolio_value)
@@ -192,11 +192,11 @@ def run_sim(stock_allocs, num_sims):
     
     loss_percent = int(entry_loss.get())
     if(loss_percent == 0):
-        loss.config(text=f'Probability of Any Loss: {prob_loss * 100:.2f}%')
-    elif(loss_percent == 100):
         loss.config(text=f'Probability of No Loss: {prob_loss * 100:.2f}%')
+    elif(loss_percent == 100):
+        loss.config(text=f'Probability of Any Loss: {prob_loss * 100:.2f}%')
     else:
-        loss.config(text=f'Probability of at Least {loss_percent}% Loss: {prob_loss * 100:.2f}%')
+        loss.config(text=f'Probability of at Most {loss_percent}% Loss: {prob_loss * 100:.2f}%')
 
     # generate histogram
     if cbtn_graph_bool.get() == True:
@@ -311,10 +311,10 @@ entry_profit = Entry(canvas, textvariable=text_DP)
 entry_profit.grid(row=3, column=1, padx=10, pady=5, sticky='e')
 
 # desired loss entry
-label_loss = Label(canvas, text='Desired Min Loss Amount (%):')
+label_loss = Label(canvas, text='Desired Max Loss Amount (%):')
 label_loss.grid(row=4, column=0, padx=10, pady=5, sticky='w')
 text_DL = StringVar()
-text_DL.set('0')
+text_DL.set('100')
 entry_loss = Entry(canvas, textvariable=text_DL)
 entry_loss.grid(row=4, column=1, padx=10, pady=5, sticky='e')
 
